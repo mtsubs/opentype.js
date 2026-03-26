@@ -173,6 +173,26 @@ describe('glyph.mjs', function() {
         });
     });
 
+    describe('composite glyph cycle detection', function() {
+        function loadCompositeCycleFont(opt) {
+            return loadSync('./test/fonts/CompositeCycle.ttf', opt);
+        }
+
+        it('throws a controlled error for circular composite references', function() {
+            const font = loadCompositeCycleFont();
+            assert.throws(function() {
+                font.glyphs.get(1).getPath();
+            }, /Circular component reference/);
+        });
+
+        it('throws a controlled error for circular composite references in low memory mode', function() {
+            const font = loadCompositeCycleFont({lowMemory: true});
+            assert.throws(function() {
+                font.glyphs.get(1).getPath();
+            }, /Circular component reference/);
+        });
+    });
+
     describe('color glyph drawing/rendering', function() {
         it('draws and renders layers correctly', function() {
             let contextLogs = [];

@@ -134,10 +134,29 @@ function ttfGlyphLoader(font, index, parseGlyph, data, position, buildPath) {
         const glyph = new Glyph({index: index, font: font});
 
         glyph.path = function() {
-            parseGlyph(glyph, data, position);
-            const path = buildPath(font.glyphs, glyph);
-            path.unitsPerEm = font.unitsPerEm;
-            return path;
+            const pathLoadStack = font._glyphPathLoadStack || (font._glyphPathLoadStack = []);
+            if (glyph._isLoadingPath) {
+                const cycleStart = pathLoadStack.indexOf(index);
+                const cycle = cycleStart === -1 ?
+                    [index, index] :
+                    pathLoadStack.slice(cycleStart).concat(index);
+                throw new Error(`Circular component reference detected: ${cycle.join(' -> ')}`);
+            }
+
+            glyph._isLoadingPath = true;
+            pathLoadStack.push(index);
+            try {
+                parseGlyph(glyph, data, position);
+                const path = buildPath(font.glyphs, glyph);
+                path.unitsPerEm = font.unitsPerEm;
+                return path;
+            } finally {
+                pathLoadStack.pop();
+                glyph._isLoadingPath = false;
+                if (pathLoadStack.length === 0) {
+                    delete font._glyphPathLoadStack;
+                }
+            }
         };
 
         defineDependentProperty(glyph, 'numberOfContours', '_numberOfContours');
