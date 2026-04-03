@@ -66,29 +66,30 @@ export function makeHhea(numHMetrics) {
     ];
 }
 
-export function makeMaxp(numGlyphs, { cff = false } = {}) {
+export function makeMaxp(numGlyphs, { cff = false, ...overrides } = {}) {
     if (cff) {
         return [
             ...u16(0), ...u16(0x5000),     // version 0.5
             ...u16(numGlyphs),
         ];
     }
+    const o = overrides;
     return [
-        ...u16(1), ...u16(0),          // version 1.0
+        ...u16(1), ...u16(0),                          // version 1.0
         ...u16(numGlyphs),
-        ...u16(0),                      // maxPoints
-        ...u16(0),                      // maxContours
-        ...u16(0),                      // maxCompositePoints
-        ...u16(0),                      // maxCompositeContours
-        ...u16(1),                      // maxZones
-        ...u16(0),                      // maxTwilightPoints
-        ...u16(0),                      // maxStorage
-        ...u16(0),                      // maxFunctionDefs
-        ...u16(0),                      // maxInstructionDefs
-        ...u16(0),                      // maxStackElements
-        ...u16(0),                      // maxSizeOfInstructions
-        ...u16(0),                      // maxComponentElements
-        ...u16(0),                      // maxComponentDepth
+        ...u16(o.maxPoints ?? 0),
+        ...u16(o.maxContours ?? 0),
+        ...u16(o.maxCompositePoints ?? 0),
+        ...u16(o.maxCompositeContours ?? 0),
+        ...u16(o.maxZones ?? 1),
+        ...u16(o.maxTwilightPoints ?? 0),
+        ...u16(o.maxStorage ?? 0),
+        ...u16(o.maxFunctionDefs ?? 0),
+        ...u16(o.maxInstructionDefs ?? 0),
+        ...u16(o.maxStackElements ?? 0),
+        ...u16(o.maxSizeOfInstructions ?? 0),
+        ...u16(o.maxComponentElements ?? 0),
+        ...u16(o.maxComponentDepth ?? 0),
     ];
 }
 
@@ -171,7 +172,7 @@ export function makeCmap(charCode) {
             ...u16(0), ...u16(1),                       // version, numTables
             ...u16(3), ...u16(1), ...u32(12),           // platformID=3, encodingID=1, offset
             ...u16(4),                                   // format 4
-            ...u16(14 + 2 * 4),                         // length
+            ...u16(14 + 2 * 5),                         // length (14-byte header + 5 per-segment u16 fields × 1 segment)
             ...u16(0),                                   // language
             ...u16(2),                                   // segCountX2
             ...u16(2), ...u16(0), ...u16(0),            // searchRange, entrySelector, rangeShift

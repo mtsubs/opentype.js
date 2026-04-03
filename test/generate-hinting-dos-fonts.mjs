@@ -30,7 +30,7 @@ function buildFont(familyName, fpgmInstructions) {
     return assembleFont({
         'head': makeHead(),
         'hhea': makeHhea(1),
-        'maxp': makeMaxp(1),
+        'maxp': makeMaxp(1, { maxFunctionDefs: 16, maxStorage: 16, maxStackElements: 64 }),
         'OS/2': makeOS2(),
         'name': makeName(familyName),
         'cmap': makeCmap(),     // no character mappings needed
