@@ -173,6 +173,19 @@ describe('glyph.mjs', function() {
         });
     });
 
+    describe('circular composite glyph references', function() {
+        it('does not crash on fonts with circular composite references', function() {
+            const font = loadSync('./test/fonts/circular-composite.ttf');
+            const glyph1 = font.glyphs.get(1);
+            const glyph2 = font.glyphs.get(2);
+            // Should return paths without stack overflow
+            const path1 = glyph1.getPath();
+            const path2 = glyph2.getPath();
+            assert.ok(path1 instanceof Path);
+            assert.ok(path2 instanceof Path);
+        });
+    });
+
     describe('color glyph drawing/rendering', function() {
         it('draws and renders layers correctly', function() {
             let contextLogs = [];
