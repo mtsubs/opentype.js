@@ -87,107 +87,57 @@ function buildCFF() {
     const localSubrsIndex = cffIndex([subr0]);
 
     // --- Private DICT ---
-    // Needs to point to localSubrs. We'll calculate the offset after we know Private DICT size.
-    // Private DICT content: just the Subrs offset
-    // Subrs operator = 19
-    // The offset is relative to the start of the Private DICT in the CFF data
-    function buildPrivateDict(subrsOffsetFromPrivate) {
-        return [...dictInt(subrsOffsetFromPrivate), u8(19)]; // Subrs offset, operator 19
+    // The Subrs operator (19) value is an offset relative to the Private DICT start.
+    function buildPrivateDict(subrsOffset) {
+        return [...dictInt(subrsOffset), u8(19)];
     }
-
-    // We need to figure out layout. Let's compute sizes iteratively.
-    // CFF layout: header + nameIndex + topDictIndex + stringIndex + gsubrsIndex + charstrings + privateDict + localSubrs
 
     // --- Global Subrs INDEX (empty) ---
     const gsubrsIndex = cffIndex([]);
 
-    // First pass: estimate offsets
-    const preTopDict = header.length + nameIndex.length;
-    // topDictIndex placeholder - we'll compute actual after knowing offsets
-
     function buildTopDict(charstringsOffset, privateDictSize, privateDictOffset) {
-        const dict = [];
-        // charset = 0 (ISOAdobe) - default, no need to encode
-        // charStrings offset: operator 17
-        dict.push(...dictInt(charstringsOffset), u8(17));
-        // Private DICT: [size, offset], operator 18
-        dict.push(...dictInt(privateDictSize), ...dictInt(privateDictOffset), u8(18));
-        return dict;
+        return [
+            ...dictInt(charstringsOffset), u8(17),  // charStrings offset
+            ...dictInt(privateDictSize), ...dictInt(privateDictOffset), u8(18),  // Private [size, offset]
+        ];
     }
 
-    // Iterative offset calculation
-    let charstringsOffset, privateDictOffset, topDict, topDictIndexBytes, privateDictBytes;
+    // CFF layout: header | nameIndex | topDictIndex | stringIndex | gsubrsIndex | charstrings | privateDict | localSubrs
+    // Two-pass offset calculation: first pass gets approximate offsets, second pass finalizes
+    // (needed because Top DICT size depends on the offset values it encodes).
+    const fixedPrefix = header.length + nameIndex.length;
+    const fixedSuffix = stringIndex.length + gsubrsIndex.length;
 
-    // Start with rough guess and converge
-    for (let iter = 0; iter < 5; iter++) {
-        topDict = buildTopDict(
-            charstringsOffset || 100,
-            10, // private dict size placeholder
-            privateDictOffset || 200
-        );
-        topDictIndexBytes = cffIndex([topDict]);
+    // Private DICT: Subrs offset = its own size (local subrs immediately follow)
+    const finalPrivateDict = buildPrivateDict(buildPrivateDict(0).length);
 
-        const afterTopDict = preTopDict + topDictIndexBytes.length;
-        const afterStringIndex = afterTopDict + stringIndex.length;
-        const afterGsubrs = afterStringIndex + gsubrsIndex.length;
-
-        charstringsOffset = afterGsubrs;
-        privateDictOffset = charstringsOffset + charStringIndex.length;
-
-        // Now build private dict with correct subrs offset
-        const privateDictContentWithoutSubrs = buildPrivateDict(0); // size without subrs ref
-        const privateDictSize_est = buildPrivateDict(privateDictContentWithoutSubrs.length + 5).length; // estimate
-        privateDictBytes = buildPrivateDict(privateDictSize_est);
-        // Recalc with actual private dict size
-        privateDictBytes = buildPrivateDict(privateDictBytes.length);
-        // One more iteration to stabilize
-        privateDictBytes = buildPrivateDict(privateDictBytes.length);
+    // Two-pass offset resolution: Top DICT encodes offsets as variable-length integers,
+    // so its size depends on the values, which depend on its size.
+    // Pass 1 uses placeholders, pass 2 uses real offsets (which are close in magnitude,
+    // so Top DICT size stabilizes).
+    let topDictIndex;
+    for (let pass = 0; pass < 2; pass++) {
+        const csOffset = fixedPrefix + (topDictIndex ? topDictIndex.length : 10) + fixedSuffix;
+        const pdOffset = csOffset + charStringIndex.length;
+        topDictIndex = cffIndex([buildTopDict(csOffset, finalPrivateDict.length, pdOffset)]);
     }
 
-    // Final build with converged offsets
-    topDict = buildTopDict(charstringsOffset, privateDictBytes.length, privateDictOffset);
-    topDictIndexBytes = cffIndex([topDict]);
-
-    // Verify offset convergence
-    const actualCharstringsOffset = preTopDict + topDictIndexBytes.length + stringIndex.length + gsubrsIndex.length;
-    const actualPrivateDictOffset = actualCharstringsOffset + charStringIndex.length;
-
-    // Rebuild with actual offsets
-    topDict = buildTopDict(actualCharstringsOffset, privateDictBytes.length, actualPrivateDictOffset);
-    topDictIndexBytes = cffIndex([topDict]);
-
-    // Re-verify
-    const verify = header.length + nameIndex.length + topDictIndexBytes.length + stringIndex.length + gsubrsIndex.length;
-    if (verify !== actualCharstringsOffset) {
-        // Offsets shifted, one more round
-        const cs2 = verify;
-        const pd2 = cs2 + charStringIndex.length;
-        privateDictBytes = buildPrivateDict(privateDictBytes.length);
-        topDict = buildTopDict(cs2, privateDictBytes.length, pd2);
-        topDictIndexBytes = cffIndex([topDict]);
-    }
-
-    // Final assembly
-    const finalCharstringsOffset = header.length + nameIndex.length + topDictIndexBytes.length + stringIndex.length + gsubrsIndex.length;
-    const finalPrivateDictOffset = finalCharstringsOffset + charStringIndex.length;
-    privateDictBytes = buildPrivateDict(privateDictBytes.length);
-    topDict = buildTopDict(finalCharstringsOffset, privateDictBytes.length, finalPrivateDictOffset);
-    topDictIndexBytes = cffIndex([topDict]);
-
-    // One final verification
-    const checkOffset = header.length + nameIndex.length + topDictIndexBytes.length + stringIndex.length + gsubrsIndex.length;
-    if (checkOffset !== finalCharstringsOffset) {
-        throw new Error(`CFF offset mismatch: expected charstrings at ${finalCharstringsOffset}, got ${checkOffset}`);
+    // Verify self-consistency
+    const charstringsOffset = fixedPrefix + topDictIndex.length + fixedSuffix;
+    const privateDictOffset = charstringsOffset + charStringIndex.length;
+    const verifyIndex = cffIndex([buildTopDict(charstringsOffset, finalPrivateDict.length, privateDictOffset)]);
+    if (verifyIndex.length !== topDictIndex.length) {
+        throw new Error('CFF Top DICT offset calculation did not converge');
     }
 
     const cff = [
         ...header,
         ...nameIndex,
-        ...topDictIndexBytes,
+        ...topDictIndex,
         ...stringIndex,
         ...gsubrsIndex,
         ...charStringIndex,
-        ...privateDictBytes,
+        ...finalPrivateDict,
         ...localSubrsIndex,
     ];
 
