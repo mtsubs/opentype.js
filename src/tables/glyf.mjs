@@ -7,9 +7,10 @@ import parse from '../parse.mjs';
 import Path from '../path.mjs';
 
 // Track glyph indices currently being resolved to detect circular references
-// in composite glyphs. Module-scoped because the recursion crosses through
-// the lazy glyph loader (glyphset.mjs), so a parameter can't be threaded through.
-const _resolving = new Set();
+// in composite glyphs. Keyed by GlyphSet to avoid cross-font collisions.
+// Module-scoped because the recursion crosses through the lazy glyph loader
+// (glyphset.mjs), so a parameter can't be threaded through.
+const _resolving = new WeakMap();
 
 // Parse the coordinate data for a glyph.
 function parseGlyphCoordinate(p, flag, previousValue, shortVectorBitMask, sameBitMask) {
@@ -267,11 +268,15 @@ function getPath(points) {
 
 function buildPath(glyphs, glyph) {
     if (glyph.isComposite) {
-        _resolving.add(glyph.index);
+        if (!_resolving.has(glyphs)) {
+            _resolving.set(glyphs, new Set());
+        }
+        const resolving = _resolving.get(glyphs);
+        resolving.add(glyph.index);
         try {
             for (let j = 0; j < glyph.components.length; j += 1) {
                 const component = glyph.components[j];
-                if (_resolving.has(component.glyphIndex)) {
+                if (resolving.has(component.glyphIndex)) {
                     continue; // skip circular reference
                 }
                 const componentGlyph = glyphs.get(component.glyphIndex);
@@ -304,7 +309,7 @@ function buildPath(glyphs, glyph) {
                 }
             }
         } finally {
-            _resolving.delete(glyph.index);
+            resolving.delete(glyph.index);
         }
     }
 

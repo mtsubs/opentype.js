@@ -154,13 +154,13 @@ function makeCmap() {
         ...u16(0x0041), ...u16(0xFFFF),    // endCode[]: 'A', sentinel
         ...u16(0),                          // reservedPad
         ...u16(0x0041), ...u16(0xFFFF),    // startCode[]: 'A', sentinel
-        ...i16(0),      ...i16(1),         // idDelta[]: 1-0x41=-0x40... let's use glyph offset instead
+        ...i16(0),      ...i16(1),         // idDelta[]: patched below for 'A' and sentinel
         ...u16(0),      ...u16(0),         // idRangeOffset[]: 0, 0
     ];
     // Fix idDelta: to map 0x41 → glyph 1, delta = 1 - 0x41 = -0x40 = 0xFFC0
-    subtable[20] = 0xFF; subtable[21] = 0xC0;
-    // sentinel delta
-    subtable[22] = 0x00; subtable[23] = 0x01;
+    subtable[24] = 0xFF; subtable[25] = 0xC0;
+    // Sentinel delta keeps 0xFFFF mapping to glyph 0
+    subtable[26] = 0x00; subtable[27] = 0x01;
     // Update length
     const len = subtable.length;
     subtable[2] = (len >> 8) & 0xff; subtable[3] = len & 0xff;
