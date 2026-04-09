@@ -105,41 +105,13 @@ path.<span class="fn">draw</span>(ctx); <span class="cm">// Draw the modified pa
     <h2>Create Fonts</h2>
     <p class="section-intro">Build OpenType fonts from scratch in the browser or Node.js.</p>
     <div class="demo-area">
-        <canvas id="create-canvas" width="960" height="200"></canvas>
+        <canvas id="create-canvas" width="960" height="300"></canvas>
         <div style="margin-top: 0.75rem;">
             <a id="download-font" class="btn" download="generated.otf">Download Generated Font</a>
         </div>
     </div>
     <div class="code-block" data-filename="create-font.md">
-        <pre><code><span class="cm">// Create a font from scratch with opentype.js</span>
-<span class="kw">import</span> opentype <span class="kw">from</span> <span class="str">'opentype.js'</span>;
-
-<span class="kw">const</span> path = <span class="kw">new</span> opentype.<span class="fn">Path</span>();
-path.<span class="fn">moveTo</span>(<span class="num">100</span>, <span class="num">0</span>);
-path.<span class="fn">lineTo</span>(<span class="num">200</span>, <span class="num">700</span>);
-path.<span class="fn">lineTo</span>(<span class="num">400</span>, <span class="num">700</span>);
-path.<span class="fn">lineTo</span>(<span class="num">500</span>, <span class="num">0</span>);
-path.<span class="fn">lineTo</span>(<span class="num">380</span>, <span class="num">0</span>);
-path.<span class="fn">lineTo</span>(<span class="num">320</span>, <span class="num">200</span>);
-path.<span class="fn">lineTo</span>(<span class="num">280</span>, <span class="num">200</span>);
-path.<span class="fn">lineTo</span>(<span class="num">220</span>, <span class="num">0</span>);
-path.<span class="fn">close</span>();
-
-<span class="kw">const</span> glyph = <span class="kw">new</span> opentype.<span class="fn">Glyph</span>({
-    name: <span class="str">'A'</span>, unicode: <span class="num">65</span>,
-    advanceWidth: <span class="num">600</span>, path
-});
-
-<span class="kw">const</span> font = <span class="kw">new</span> opentype.<span class="fn">Font</span>({
-    familyName: <span class="str">'MyFont'</span>,
-    styleName: <span class="str">'Regular'</span>,
-    unitsPerEm: <span class="num">1000</span>,
-    ascender: <span class="num">800</span>,
-    descender: <span class="num">-200</span>,
-    glyphs: [notdefGlyph, glyph]
-});
-
-font.<span class="fn">download</span>(); <span class="cm">// triggers browser download</span></code></pre>
+        <pre><code id="create-code"></code></pre>
         <button class="download-btn" aria-label="Download as Markdown">↓ .md</button>
     </div>
 </section>
@@ -436,50 +408,70 @@ function mulberry32(seed) {
 
         ctx.clearRect(0, 0, 960, 200);
         const x = 10, y = 150;
-
-        const advanceWidth = font.getAdvanceWidth(text, fontSize);
         const fontScale = fontSize / font.unitsPerEm;
+        const opts = Object.assign({}, font.defaultRenderOptions);
+
+        // Single layout pass: collect glyph positions + paths
+        const glyphs = [];
+        font.forEachGlyph(text, x, y, fontSize, opts, (glyph, gX, gY, gFontSize) => {
+            const scale = 1 / font.unitsPerEm * gFontSize;
+            glyphs.push({
+                glyph, x: gX, y: gY, fontSize: gFontSize,
+                advance: glyph.advanceWidth * scale
+            });
+        });
+        const advanceWidth = glyphs.reduce((sum, g) => g.x + g.advance, x) - x;
 
         if (metricsCheck.checked) {
+            const asc = y - font.ascender * fontScale;
+            const desc = y - font.descender * fontScale;
+            const totalAdv = glyphs.length ? glyphs[glyphs.length - 1].x + glyphs[glyphs.length - 1].advance : x;
+
+            // Per-glyph advance width boxes
+            for (let i = 0; i < glyphs.length; i++) {
+                const g = glyphs[i];
+                ctx.fillStyle = i % 2 === 0
+                    ? 'oklch(0.62 0.17 155 / 0.08)'
+                    : 'oklch(0.62 0.17 155 / 0.16)';
+                ctx.fillRect(g.x, asc, g.advance, desc - asc);
+                ctx.strokeStyle = 'oklch(0.62 0.17 155 / 0.3)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(g.x + g.advance, asc);
+                ctx.lineTo(g.x + g.advance, desc);
+                ctx.stroke();
+            }
+
             // Baseline — muted
             ctx.strokeStyle = 'oklch(0.75 0.01 260 / 0.4)';
             ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + advanceWidth, y); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(totalAdv, y); ctx.stroke();
 
-            // Ascender / descender — very muted
-            const asc = y - font.ascender * fontScale;
-            const desc = y - font.descender * fontScale;
+            // Ascender / descender — very muted dashed
             ctx.strokeStyle = 'oklch(0.75 0.01 260 / 0.25)';
             ctx.setLineDash([4, 4]);
-            ctx.beginPath(); ctx.moveTo(x, asc); ctx.lineTo(x + advanceWidth, asc); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(x, desc); ctx.lineTo(x + advanceWidth, desc); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x, asc); ctx.lineTo(totalAdv, asc); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x, desc); ctx.lineTo(totalAdv, desc); ctx.stroke();
             ctx.setLineDash([]);
         }
 
-        // Advance width — prominent green
-        if (metricsCheck.checked) {
-            ctx.fillStyle = 'oklch(0.62 0.17 155 / 0.12)';
-            const asc = y - font.ascender * fontScale;
-            const desc = y - font.descender * fontScale;
-            ctx.fillRect(x, asc, advanceWidth, desc - asc);
-            ctx.strokeStyle = 'oklch(0.62 0.17 155 / 0.6)';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(x + advanceWidth, asc);
-            ctx.lineTo(x + advanceWidth, desc);
-            ctx.stroke();
-            ctx.lineWidth = 1;
+        // Draw text and points using the same layout positions
+        for (const g of glyphs) {
+            const path = g.glyph.getPath(g.x, g.y, g.fontSize, opts, font);
+            path.fill = TEXT_COLOR;
+            path.draw(ctx);
         }
-
-        font.draw(ctx, text, x, y, fontSize);
 
         if (pointsCheck.checked) {
-            font.drawPoints(ctx, text, x, y, fontSize);
+            for (const g of glyphs) {
+                g.glyph.drawPoints(ctx, g.x, g.y, g.fontSize, opts, font);
+            }
         }
 
-        const bbox = font.getPath(text, x, y, fontSize).getBoundingBox();
+        const totalAdv = glyphs.length ? glyphs[glyphs.length - 1].x + glyphs[glyphs.length - 1].advance - x : 0;
+        const bbox = font.getPath(text, x, y, fontSize, opts).getBoundingBox();
         output.textContent =
-            `Advance width: ${advanceWidth.toFixed(1)}px` +
+            `Advance width: ${totalAdv.toFixed(1)}px` +
             `  ·  Bounding box: ${(bbox.x2 - bbox.x1).toFixed(1)} × ${(bbox.y2 - bbox.y1).toFixed(1)}px`;
     }
 
@@ -553,103 +545,280 @@ function mulberry32(seed) {
     const ctx = canvas.getContext('2d');
     enableHighDPI(canvas);
 
-    // .notdef glyph
-    const notdefPath = new opentype.Path();
-    notdefPath.moveTo(100, 0);
-    notdefPath.lineTo(100, 700);
-    notdefPath.lineTo(600, 700);
-    notdefPath.lineTo(600, 0);
-    notdefPath.close();
-    notdefPath.moveTo(200, 100);
-    notdefPath.lineTo(500, 100);
-    notdefPath.lineTo(500, 600);
-    notdefPath.lineTo(200, 600);
-    notdefPath.close();
-    const notdefGlyph = new opentype.Glyph({
-        name: '.notdef', unicode: 0, advanceWidth: 650, path: notdefPath
-    });
+    const codeEl = document.getElementById('create-code');
+    const downloadLink = document.getElementById('download-font');
 
-    // Letter A — triangle with crossbar
-    const aPath = new opentype.Path();
-    aPath.moveTo(0, 0);
-    aPath.lineTo(200, 700);
-    aPath.lineTo(400, 700);
-    aPath.lineTo(600, 0);
-    aPath.lineTo(480, 0);
-    aPath.lineTo(410, 230);
-    aPath.lineTo(190, 230);
-    aPath.lineTo(120, 0);
-    aPath.close();
-    aPath.moveTo(230, 330);
-    aPath.lineTo(370, 330);
-    aPath.lineTo(300, 580);
-    aPath.close();
-    const aGlyph = new opentype.Glyph({
-        name: 'A', unicode: 65, advanceWidth: 600, path: aPath
-    });
+    // All editable points for both glyphs (font units, 1000 unitsPerEm)
+    // A glyph: points[0..10], B glyph: bPoints[0..N]
+    const aPoints = [
+        // Outer: A shape
+        { x: 0, y: 0 }, { x: 200, y: 700 }, { x: 400, y: 700 }, { x: 600, y: 0 },
+        { x: 480, y: 0 }, { x: 410, y: 230 }, { x: 190, y: 230 }, { x: 120, y: 0 },
+        // Inner: counter (triangle hole)
+        { x: 230, y: 330 }, { x: 370, y: 330 }, { x: 300, y: 580 },
+    ];
 
-    // Letter B — two bumps
-    const bPath = new opentype.Path();
-    bPath.moveTo(80, 0);
-    bPath.lineTo(80, 700);
-    bPath.lineTo(380, 700);
-    bPath.quadraticCurveTo(550, 700, 550, 550);
-    bPath.quadraticCurveTo(550, 400, 380, 380);
-    bPath.lineTo(400, 380);
-    bPath.quadraticCurveTo(580, 380, 580, 200);
-    bPath.quadraticCurveTo(580, 0, 400, 0);
-    bPath.close();
-    bPath.moveTo(200, 400);
-    bPath.lineTo(360, 400);
-    bPath.quadraticCurveTo(440, 400, 440, 540);
-    bPath.quadraticCurveTo(440, 620, 360, 620);
-    bPath.lineTo(200, 620);
-    bPath.close();
-    bPath.moveTo(200, 80);
-    bPath.lineTo(380, 80);
-    bPath.quadraticCurveTo(460, 80, 460, 200);
-    bPath.quadraticCurveTo(460, 300, 380, 300);
-    bPath.lineTo(200, 300);
-    bPath.close();
-    const bGlyph = new opentype.Glyph({
-        name: 'B', unicode: 66, advanceWidth: 620, path: bPath
-    });
+    const bPoints = [
+        // Outer contour
+        { x: 80, y: 0 }, { x: 80, y: 700 }, { x: 380, y: 700 },
+        { x: 520, y: 700 }, { x: 520, y: 550 },  // Q control + end (top bump outer)
+        { x: 520, y: 400 }, { x: 380, y: 380 },   // Q control + end
+        { x: 400, y: 380 },
+        { x: 560, y: 380 }, { x: 560, y: 200 },   // Q control + end (bottom bump outer)
+        { x: 560, y: 0 }, { x: 400, y: 0 },       // Q control + end
+        // Upper counter
+        { x: 200, y: 400 }, { x: 360, y: 400 },
+        { x: 430, y: 400 }, { x: 430, y: 540 },   // Q
+        { x: 430, y: 620 }, { x: 360, y: 620 },   // Q
+        { x: 200, y: 620 },
+        // Lower counter
+        { x: 200, y: 80 }, { x: 380, y: 80 },
+        { x: 450, y: 80 }, { x: 450, y: 200 },    // Q
+        { x: 450, y: 300 }, { x: 380, y: 300 },   // Q
+        { x: 200, y: 300 },
+    ];
 
-    // Space glyph
-    const spaceGlyph = new opentype.Glyph({
-        name: 'space', unicode: 32, advanceWidth: 300, path: new opentype.Path()
-    });
+    const A_ADV = 600, B_ADV = 620;
+    const SCALE = 0.28;
+    const GAP = 20;
+    const A_ORIGIN_X = 40;
+    const B_ORIGIN_X = A_ORIGIN_X + A_ADV * SCALE + GAP;
+    const B2_ORIGIN_X = B_ORIGIN_X + B_ADV * SCALE + GAP;
+    const A2_ORIGIN_X = B2_ORIGIN_X + B_ADV * SCALE + GAP;
+    const ORIGIN_Y = 250;
+    const POINT_RADIUS = 3;
+    let dragGlyph = null; // 'a' or 'b'
+    let dragIndex = -1;
+    let hoverGlyph = null;
+    let hoverIndex = -1;
 
-    const createdFont = new opentype.Font({
-        familyName: 'OpenTypeSans',
-        styleName: 'Regular',
-        unitsPerEm: 1000,
-        ascender: 800,
-        descender: -200,
-        glyphs: [notdefGlyph, spaceGlyph, aGlyph, bGlyph]
-    });
-
-    // Parse it back to prove the round-trip
-    const roundTripped = opentype.parse(createdFont.toArrayBuffer());
-
-    // Draw the glyphs (skip .notdef and space)
-    const fontSize = 120;
-    let x = 30;
-    const y = 155;
-    for (let i = 0; i < roundTripped.glyphs.length; i++) {
-        const glyph = roundTripped.glyphs.get(i);
-        if (!glyph.unicode || glyph.unicode === 32) continue;
-        const glyphPath = glyph.getPath(x, y, fontSize, {}, roundTripped);
-        glyphPath.draw(ctx);
-        glyph.drawMetrics(ctx, x, y, fontSize);
-        const scale = 1 / roundTripped.unitsPerEm * fontSize;
-        x += glyph.advanceWidth * scale + 30;
+    function toCanvas(p, originX) {
+        return { x: originX + p.x * SCALE, y: ORIGIN_Y - p.y * SCALE };
+    }
+    function toFont(cx, cy, originX) {
+        return { x: Math.round((cx - originX) / SCALE), y: Math.round((ORIGIN_Y - cy) / SCALE) };
     }
 
-    // Download link
-    const downloadLink = document.getElementById('download-font');
-    const blob = new Blob([createdFont.toArrayBuffer()], { type: 'font/otf' });
-    downloadLink.href = URL.createObjectURL(blob);
+    function buildAPath() {
+        const p = new opentype.Path();
+        p.moveTo(aPoints[0].x, aPoints[0].y);
+        for (let i = 1; i <= 7; i++) p.lineTo(aPoints[i].x, aPoints[i].y);
+        p.close();
+        p.moveTo(aPoints[8].x, aPoints[8].y);
+        p.lineTo(aPoints[9].x, aPoints[9].y);
+        p.lineTo(aPoints[10].x, aPoints[10].y);
+        p.close();
+        return p;
+    }
+
+    function buildBPath() {
+        const b = bPoints;
+        const p = new opentype.Path();
+        // Outer
+        p.moveTo(b[0].x, b[0].y);
+        p.lineTo(b[1].x, b[1].y);
+        p.lineTo(b[2].x, b[2].y);
+        p.quadraticCurveTo(b[3].x, b[3].y, b[4].x, b[4].y);
+        p.quadraticCurveTo(b[5].x, b[5].y, b[6].x, b[6].y);
+        p.lineTo(b[7].x, b[7].y);
+        p.quadraticCurveTo(b[8].x, b[8].y, b[9].x, b[9].y);
+        p.quadraticCurveTo(b[10].x, b[10].y, b[11].x, b[11].y);
+        p.close();
+        // Upper counter
+        p.moveTo(b[12].x, b[12].y);
+        p.lineTo(b[13].x, b[13].y);
+        p.quadraticCurveTo(b[14].x, b[14].y, b[15].x, b[15].y);
+        p.quadraticCurveTo(b[16].x, b[16].y, b[17].x, b[17].y);
+        p.lineTo(b[18].x, b[18].y);
+        p.close();
+        // Lower counter
+        p.moveTo(b[19].x, b[19].y);
+        p.lineTo(b[20].x, b[20].y);
+        p.quadraticCurveTo(b[21].x, b[21].y, b[22].x, b[22].y);
+        p.quadraticCurveTo(b[23].x, b[23].y, b[24].x, b[24].y);
+        p.lineTo(b[25].x, b[25].y);
+        p.close();
+        return p;
+    }
+
+    function buildFont() {
+        const notdefPath = new opentype.Path();
+        notdefPath.moveTo(100, 0); notdefPath.lineTo(100, 700);
+        notdefPath.lineTo(600, 700); notdefPath.lineTo(600, 0); notdefPath.close();
+        notdefPath.moveTo(200, 100); notdefPath.lineTo(500, 100);
+        notdefPath.lineTo(500, 600); notdefPath.lineTo(200, 600); notdefPath.close();
+
+        return new opentype.Font({
+            familyName: 'MyFont', styleName: 'Regular',
+            unitsPerEm: 1000, ascender: 800, descender: -200,
+            glyphs: [
+                new opentype.Glyph({ name: '.notdef', unicode: 0, advanceWidth: 650, path: notdefPath }),
+                new opentype.Glyph({ name: 'space', unicode: 32, advanceWidth: 300, path: new opentype.Path() }),
+                new opentype.Glyph({ name: 'A', unicode: 65, advanceWidth: A_ADV, path: buildAPath() }),
+                new opentype.Glyph({ name: 'B', unicode: 66, advanceWidth: B_ADV, path: buildBPath() }),
+            ]
+        });
+    }
+
+    function updateCode() {
+        const lines = [
+            '// Create a font from scratch with opentype.js',
+            "import opentype from 'opentype.js';",
+            '',
+            '// Define the "A" glyph path',
+            'const aPath = new opentype.Path();',
+        ];
+        lines.push(`aPath.moveTo(${aPoints[0].x}, ${aPoints[0].y});`);
+        for (let i = 1; i <= 7; i++) lines.push(`aPath.lineTo(${aPoints[i].x}, ${aPoints[i].y});`);
+        lines.push('aPath.close();');
+        lines.push(`aPath.moveTo(${aPoints[8].x}, ${aPoints[8].y});`);
+        lines.push(`aPath.lineTo(${aPoints[9].x}, ${aPoints[9].y});`);
+        lines.push(`aPath.lineTo(${aPoints[10].x}, ${aPoints[10].y});`);
+        lines.push('aPath.close();');
+        lines.push('');
+        lines.push('// Define the "B" glyph path (with curves)');
+        lines.push('const bPath = new opentype.Path();');
+        lines.push('// ... define B glyph here as well');
+        lines.push('');
+        lines.push("const font = new opentype.Font({");
+        lines.push("    familyName: 'MyFont', styleName: 'Regular',");
+        lines.push("    unitsPerEm: 1000, ascender: 800, descender: -200,");
+        lines.push("    glyphs: [notdefGlyph,");
+        lines.push("        new opentype.Glyph({ name: 'A', unicode: 65, advanceWidth: 600, path: aPath }),");
+        lines.push("        new opentype.Glyph({ name: 'B', unicode: 66, advanceWidth: 620, path: bPath }),");
+        lines.push("    ]");
+        lines.push("});");
+        lines.push('');
+        lines.push('font.download(); // triggers browser download');
+        codeEl.textContent = lines.join('\n');
+    }
+
+    function drawGlyph(path, originX) {
+        const drawPath = new opentype.Path();
+        for (const cmd of path.commands) {
+            const tx = (v) => originX + v * SCALE;
+            const ty = (v) => ORIGIN_Y - v * SCALE;
+            if (cmd.type === 'M') drawPath.moveTo(tx(cmd.x), ty(cmd.y));
+            else if (cmd.type === 'L') drawPath.lineTo(tx(cmd.x), ty(cmd.y));
+            else if (cmd.type === 'Q') drawPath.quadraticCurveTo(tx(cmd.x1), ty(cmd.y1), tx(cmd.x), ty(cmd.y));
+            else if (cmd.type === 'Z') drawPath.close();
+        }
+        ctx.fillStyle = 'oklch(0.18 0.02 260 / 0.85)';
+        drawPath.fill = 'oklch(0.18 0.02 260 / 0.85)';
+        drawPath.draw(ctx);
+    }
+
+    function drawPoints(pts, originX, glyphId) {
+        for (let i = 0; i < pts.length; i++) {
+            const cp = toCanvas(pts[i], originX);
+            const isHover = hoverGlyph === glyphId && i === hoverIndex;
+            const isDrag = dragGlyph === glyphId && i === dragIndex;
+            ctx.beginPath();
+            ctx.arc(cp.x, cp.y, isDrag ? POINT_RADIUS + 1 : POINT_RADIUS, 0, Math.PI * 2);
+            ctx.fillStyle = isDrag ? GREEN : isHover ? 'oklch(0.50 0.15 155)' : 'oklch(0.55 0.15 260)';
+            ctx.fill();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        }
+    }
+
+    function drawMetricLines(originX, advWidth) {
+        const rightX = originX + advWidth * SCALE;
+        const ascY = ORIGIN_Y - 700 * SCALE;
+        ctx.strokeStyle = 'oklch(0.75 0.01 260 / 0.3)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(originX, ORIGIN_Y); ctx.lineTo(rightX, ORIGIN_Y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(originX, ascY); ctx.lineTo(rightX, ascY); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = 'oklch(0.62 0.17 155 / 0.4)';
+        ctx.beginPath(); ctx.moveTo(rightX, ascY); ctx.lineTo(rightX, ORIGIN_Y); ctx.stroke();
+    }
+
+    function render() {
+        ctx.clearRect(0, 0, 960, 300);
+
+        const aPath = buildAPath();
+        const bPath = buildBPath();
+
+        // A (editable)
+        drawMetricLines(A_ORIGIN_X, A_ADV);
+        drawGlyph(aPath, A_ORIGIN_X);
+        drawPoints(aPoints, A_ORIGIN_X, 'a');
+
+        // B (editable)
+        drawMetricLines(B_ORIGIN_X, B_ADV);
+        drawGlyph(bPath, B_ORIGIN_X);
+        drawPoints(bPoints, B_ORIGIN_X, 'b');
+
+        // B (instance, no points)
+        drawGlyph(bPath, B2_ORIGIN_X);
+
+        // A (instance, no points)
+        drawGlyph(aPath, A2_ORIGIN_X);
+
+        const createdFont = buildFont();
+        const blob = new Blob([createdFont.toArrayBuffer()], { type: 'font/otf' });
+        downloadLink.href = URL.createObjectURL(blob);
+        updateCode();
+    }
+
+    // Mouse interaction
+    function getMousePos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
+
+    function findPoint(mx, my) {
+        const hitR = POINT_RADIUS + 4;
+        // Check A points
+        for (let i = 0; i < aPoints.length; i++) {
+            const cp = toCanvas(aPoints[i], A_ORIGIN_X);
+            if ((mx - cp.x) ** 2 + (my - cp.y) ** 2 < hitR * hitR) return { glyph: 'a', index: i };
+        }
+        // Check B points
+        for (let i = 0; i < bPoints.length; i++) {
+            const cp = toCanvas(bPoints[i], B_ORIGIN_X);
+            if ((mx - cp.x) ** 2 + (my - cp.y) ** 2 < hitR * hitR) return { glyph: 'b', index: i };
+        }
+        return null;
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+        const { x, y } = getMousePos(e);
+        const hit = findPoint(x, y);
+        if (hit) { dragGlyph = hit.glyph; dragIndex = hit.index; canvas.style.cursor = 'grabbing'; }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        const { x, y } = getMousePos(e);
+        if (dragGlyph) {
+            const originX = dragGlyph === 'a' ? A_ORIGIN_X : B_ORIGIN_X;
+            const pts = dragGlyph === 'a' ? aPoints : bPoints;
+            const fp = toFont(x, y, originX);
+            pts[dragIndex].x = fp.x;
+            pts[dragIndex].y = fp.y;
+            render();
+        } else {
+            const hit = findPoint(x, y);
+            hoverGlyph = hit ? hit.glyph : null;
+            hoverIndex = hit ? hit.index : -1;
+            canvas.style.cursor = hit ? 'grab' : 'default';
+            render();
+        }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+        if (dragGlyph) { dragGlyph = null; dragIndex = -1; canvas.style.cursor = 'default'; render(); }
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+        dragGlyph = null; dragIndex = -1; hoverGlyph = null; hoverIndex = -1;
+        canvas.style.cursor = 'default'; render();
+    });
+
+    render();
 })();
 
 // ── Code Download Buttons ──────────────────────────────────
