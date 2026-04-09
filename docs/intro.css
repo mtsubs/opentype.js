@@ -97,7 +97,6 @@ a:hover { color: var(--green-hover); }
 }
 
 .header nav.right a {
-    border-left: 1px solid oklch(0.55 0.12 155);
     margin: 0;
     padding: 0 1rem;
 }

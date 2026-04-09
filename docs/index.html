@@ -12,13 +12,13 @@
 
 <div class="header">
     <div class="container">
-        <h1><a href="./">opentype.js</a></h1>
+        <h1><a href="./">OpenType.js</a></h1>
         <nav>
             <a href="font-inspector.html">Font Inspector</a>
             <a href="glyph-inspector.html">Glyph Inspector</a>
         </nav>
         <nav class="right">
-            <a href="https://github.com/opentypejs/opentype.js">GitHub</a>
+            <a href="https://github.com/opentypejs/opentype.js" target="_blank">GitHub</a>
         </nav>
     </div>
 </div>
@@ -40,7 +40,7 @@
         <input class="text-input" value="Hello, World!" id="measure-text">
         <div class="demo-controls">
             <label>Font Size <input type="range" min="24" max="300" step="2" value="120" id="measure-size"><output id="measure-size-val">120</output></label>
-            <label><input type="checkbox" id="draw-points"> Draw Points</label>
+            <label><input type="checkbox" id="draw-points" checked> Draw Points</label>
             <label><input type="checkbox" id="draw-metrics"> Draw Metrics</label>
         </div>
         <div class="measure-output" id="measure-output"></div>
@@ -146,8 +146,8 @@ font.<span class="fn">download</span>(); <span class="cm">// triggers browser do
 
 <footer class="footer container">
     <p>
-        opentype.js is free software under the <a href="https://github.com/opentypejs/opentype.js/blob/master/LICENSE">MIT License</a>.
-        Copyright &copy; 2020 Frederik De Bleser.
+        OpenType.js is free software under the <a href="https://github.com/opentypejs/opentype.js/blob/master/LICENSE">MIT License</a>.
+        Copyright &copy; <script>document.write(new Date().getFullYear())</script> Frederik De Bleser.
     </p>
 </footer>
 
@@ -436,16 +436,47 @@ function mulberry32(seed) {
 
         ctx.clearRect(0, 0, 960, 200);
         const x = 10, y = 150;
+
+        const advanceWidth = font.getAdvanceWidth(text, fontSize);
+        const fontScale = fontSize / font.unitsPerEm;
+
+        if (metricsCheck.checked) {
+            // Baseline — muted
+            ctx.strokeStyle = 'oklch(0.75 0.01 260 / 0.4)';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + advanceWidth, y); ctx.stroke();
+
+            // Ascender / descender — very muted
+            const asc = y - font.ascender * fontScale;
+            const desc = y - font.descender * fontScale;
+            ctx.strokeStyle = 'oklch(0.75 0.01 260 / 0.25)';
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath(); ctx.moveTo(x, asc); ctx.lineTo(x + advanceWidth, asc); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x, desc); ctx.lineTo(x + advanceWidth, desc); ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // Advance width — prominent green
+        if (metricsCheck.checked) {
+            ctx.fillStyle = 'oklch(0.62 0.17 155 / 0.12)';
+            const asc = y - font.ascender * fontScale;
+            const desc = y - font.descender * fontScale;
+            ctx.fillRect(x, asc, advanceWidth, desc - asc);
+            ctx.strokeStyle = 'oklch(0.62 0.17 155 / 0.6)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x + advanceWidth, asc);
+            ctx.lineTo(x + advanceWidth, desc);
+            ctx.stroke();
+            ctx.lineWidth = 1;
+        }
+
         font.draw(ctx, text, x, y, fontSize);
 
         if (pointsCheck.checked) {
             font.drawPoints(ctx, text, x, y, fontSize);
         }
-        if (metricsCheck.checked) {
-            font.drawMetrics(ctx, text, x, y, fontSize);
-        }
 
-        const advanceWidth = font.getAdvanceWidth(text, fontSize);
         const bbox = font.getPath(text, x, y, fontSize).getBoundingBox();
         output.textContent =
             `Advance width: ${advanceWidth.toFixed(1)}px` +
