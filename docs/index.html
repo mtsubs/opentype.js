@@ -49,7 +49,8 @@
         <pre><code><span class="cm">// Load and measure a font with opentype.js</span>
 <span class="kw">import</span> opentype <span class="kw">from</span> <span class="str">'opentype.js'</span>;
 
-<span class="kw">const</span> font = <span class="kw">await</span> opentype.<span class="fn">load</span>(<span class="str">'fonts/MyFont.ttf'</span>);
+<span class="kw">const</span> buffer = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'fonts/MyFont.ttf'</span>).<span class="fn">then</span>(r => r.<span class="fn">arrayBuffer</span>());
+<span class="kw">const</span> font = opentype.<span class="fn">parse</span>(buffer);
 
 <span class="cm">// Draw text on a canvas</span>
 <span class="kw">const</span> ctx = canvas.<span class="fn">getContext</span>(<span class="str">'2d'</span>);
@@ -81,7 +82,8 @@ console.<span class="fn">log</span>(glyph.name, glyph.advanceWidth);</code></pre
         <pre><code><span class="cm">// Manipulate glyph outlines with opentype.js</span>
 <span class="kw">import</span> opentype <span class="kw">from</span> <span class="str">'opentype.js'</span>;
 
-<span class="kw">const</span> font = <span class="kw">await</span> opentype.<span class="fn">load</span>(<span class="str">'fonts/MyFont.ttf'</span>);
+<span class="kw">const</span> buffer = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'fonts/MyFont.ttf'</span>).<span class="fn">then</span>(r => r.<span class="fn">arrayBuffer</span>());
+<span class="kw">const</span> font = opentype.<span class="fn">parse</span>(buffer);
 <span class="kw">const</span> path = font.<span class="fn">getPath</span>(<span class="str">'Hello'</span>, <span class="num">0</span>, <span class="num">150</span>, <span class="num">72</span>);
 
 <span class="cm">// Snap all points to a grid</span>
