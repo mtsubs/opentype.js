@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>opentype.js – JavaScript parser/writer for OpenType and TrueType fonts.</title>
+    <title>OpenType.js – JavaScript parser/writer for OpenType and TrueType fonts.</title>
     <meta name="description" content="A JavaScript library to read, write, and manipulate OpenType fonts from the browser or node.js.">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -41,7 +41,7 @@
         <div class="demo-controls">
             <label>Font Size <input type="range" min="24" max="300" step="2" value="120" id="measure-size"><output id="measure-size-val">120</output></label>
             <label><input type="checkbox" id="draw-points" checked> Draw Points</label>
-            <label><input type="checkbox" id="draw-metrics"> Draw Metrics</label>
+            <label><input type="checkbox" id="draw-metrics" checked> Draw Metrics</label>
         </div>
         <div class="measure-output" id="measure-output"></div>
     </div>
@@ -72,10 +72,10 @@ console.<span class="fn">log</span>(glyph.name, glyph.advanceWidth);</code></pre
     <p class="section-intro">Access raw path commands and transform letterforms programmatically.</p>
     <div class="demo-area">
         <canvas id="snap-canvas" width="960" height="250"></canvas>
-        <input class="text-input" value="opentype.js" id="snap-text">
+        <input class="text-input" value="OpenType.js" id="snap-text">
         <div class="demo-controls">
-            <label>Strength <input type="range" min="0" max="100" value="80" id="snap-strength"><output id="snap-strength-val">80</output></label>
-            <label>Grid Size <input type="range" min="1" max="100" value="53" id="snap-distance"><output id="snap-distance-val">53</output></label>
+            <label>Strength <input type="range" min="0" max="100" value="0" id="snap-strength"><output id="snap-strength-val">0</output></label>
+            <label>Grid Size <input type="range" min="1" max="100" value="20" id="snap-distance"><output id="snap-distance-val">20</output></label>
         </div>
     </div>
     <div class="code-block" data-filename="manipulate-outlines.md">
@@ -411,11 +411,21 @@ function mulberry32(seed) {
         ctx.clearRect(0, 0, 960, 200);
         const x = 10, y = 150;
         const fontScale = fontSize / font.unitsPerEm;
-        const opts = Object.assign({}, font.defaultRenderOptions);
+
+        // Lock to an explicit variation so the wave hero's mutations on the
+        // shared glyph objects don't bleed through into our layout. See:
+        // experiments/font-variation-pure.md for the underlying library bug.
+        const opts = Object.assign({}, font.defaultRenderOptions, {
+            variation: Object.assign({}, font.defaultRenderOptions.variation)
+        });
 
         // Single layout pass: collect glyph positions + paths
         const glyphs = [];
         font.forEachGlyph(text, x, y, fontSize, opts, (glyph, gX, gY, gFontSize) => {
+            // Force transform to our variation BEFORE reading advanceWidth —
+            // otherwise forEachGlyph (and we) would read whatever the wave hero
+            // last wrote via its own getTransform calls.
+            if (font.variation) font.variation.getTransform(glyph, opts.variation);
             const scale = 1 / font.unitsPerEm * gFontSize;
             glyphs.push({
                 glyph, x: gX, y: gY, fontSize: gFontSize,
@@ -524,7 +534,7 @@ function mulberry32(seed) {
     }
 
     function render() {
-        const text = textInput.value || 'opentype.js';
+        const text = textInput.value || 'OpenType.js';
         strengthVal.textContent = strengthInput.value;
         distanceVal.textContent = distanceInput.value;
 
@@ -717,7 +727,7 @@ function mulberry32(seed) {
             const isDrag = dragGlyph === glyphId && i === dragIndex;
             ctx.beginPath();
             ctx.arc(cp.x, cp.y, isDrag ? POINT_RADIUS + 1 : POINT_RADIUS, 0, Math.PI * 2);
-            ctx.fillStyle = isDrag ? GREEN : isHover ? 'oklch(0.50 0.15 155)' : 'oklch(0.55 0.15 260)';
+            ctx.fillStyle = (isDrag || isHover) ? GREEN : 'oklch(0.55 0.15 260)';
             ctx.fill();
             ctx.strokeStyle = 'white';
             ctx.lineWidth = 1.5;
@@ -790,7 +800,7 @@ function mulberry32(seed) {
     canvas.addEventListener('mousedown', (e) => {
         const { x, y } = getMousePos(e);
         const hit = findPoint(x, y);
-        if (hit) { dragGlyph = hit.glyph; dragIndex = hit.index; canvas.style.cursor = 'grabbing'; }
+        if (hit) { dragGlyph = hit.glyph; dragIndex = hit.index; }
     });
 
     canvas.addEventListener('mousemove', (e) => {
@@ -806,18 +816,17 @@ function mulberry32(seed) {
             const hit = findPoint(x, y);
             hoverGlyph = hit ? hit.glyph : null;
             hoverIndex = hit ? hit.index : -1;
-            canvas.style.cursor = hit ? 'grab' : 'default';
             render();
         }
     });
 
     canvas.addEventListener('mouseup', () => {
-        if (dragGlyph) { dragGlyph = null; dragIndex = -1; canvas.style.cursor = 'default'; render(); }
+        if (dragGlyph) { dragGlyph = null; dragIndex = -1; render(); }
     });
 
     canvas.addEventListener('mouseleave', () => {
         dragGlyph = null; dragIndex = -1; hoverGlyph = null; hoverIndex = -1;
-        canvas.style.cursor = 'default'; render();
+        render();
     });
 
     render();
