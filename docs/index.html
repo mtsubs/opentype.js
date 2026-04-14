@@ -45,7 +45,7 @@
         </div>
         <div class="measure-output" id="measure-output"></div>
     </div>
-    <div class="code-block" data-filename="load-and-measure.md">
+    <div class="code-block">
         <pre><code><span class="cm">// Load and measure a font with opentype.js</span>
 <span class="kw">import</span> opentype <span class="kw">from</span> <span class="str">'opentype.js'</span>;
 
@@ -62,7 +62,10 @@ font.<span class="fn">draw</span>(ctx, <span class="str">'Hello'</span>, <span c
 <span class="cm">// Access individual glyphs</span>
 <span class="kw">const</span> glyph = font.<span class="fn">charToGlyph</span>(<span class="str">'A'</span>);
 console.<span class="fn">log</span>(glyph.name, glyph.advanceWidth);</code></pre>
-        <button class="download-btn" aria-label="Download as Markdown">↓ .md</button>
+        <button class="copy-btn" aria-label="Copy code">
+            <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
     </div>
 </section>
 
@@ -78,7 +81,7 @@ console.<span class="fn">log</span>(glyph.name, glyph.advanceWidth);</code></pre
             <label>Grid Size <input type="range" min="1" max="100" value="20" id="snap-distance"><output id="snap-distance-val">20</output></label>
         </div>
     </div>
-    <div class="code-block" data-filename="manipulate-outlines.md">
+    <div class="code-block">
         <pre><code><span class="cm">// Manipulate glyph outlines with opentype.js</span>
 <span class="kw">import</span> opentype <span class="kw">from</span> <span class="str">'opentype.js'</span>;
 
@@ -98,7 +101,10 @@ console.<span class="fn">log</span>(glyph.name, glyph.advanceWidth);</code></pre
 }
 
 path.<span class="fn">draw</span>(ctx); <span class="cm">// Draw the modified path</span></code></pre>
-        <button class="download-btn" aria-label="Download as Markdown">↓ .md</button>
+        <button class="copy-btn" aria-label="Copy code">
+            <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
     </div>
 </section>
 
@@ -112,9 +118,12 @@ path.<span class="fn">draw</span>(ctx); <span class="cm">// Draw the modified pa
             <a id="download-font" class="btn" download="generated.otf">Download Generated Font</a>
         </div>
     </div>
-    <div class="code-block" data-filename="create-font.md">
+    <div class="code-block">
         <pre><code id="create-code"></code></pre>
-        <button class="download-btn" aria-label="Download as Markdown">↓ .md</button>
+        <button class="copy-btn" aria-label="Copy code">
+            <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
     </div>
 </section>
 
@@ -673,36 +682,47 @@ function mulberry32(seed) {
     }
 
     function updateCode() {
+        const kw = (s) => `<span class="kw">${s}</span>`;
+        const str = (s) => `<span class="str">${s}</span>`;
+        const cm = (s) => `<span class="cm">${s}</span>`;
+        const fn = (s) => `<span class="fn">${s}</span>`;
+        const num = (n) => `<span class="num">${n}</span>`;
+
+        const pathCall = (name, method, args) =>
+            `${name}.${fn(method)}(${args.map(num).join(', ')});`;
+
         const lines = [
-            '// Create a font from scratch with opentype.js',
-            "import opentype from 'opentype.js';",
+            cm('// Create a font from scratch with opentype.js'),
+            `${kw('import')} opentype ${kw('from')} ${str("'opentype.js'")};`,
             '',
-            '// Define the "A" glyph path',
-            'const aPath = new opentype.Path();',
+            cm('// Define the "A" glyph path'),
+            `${kw('const')} aPath = ${kw('new')} opentype.${fn('Path')}();`,
+            pathCall('aPath', 'moveTo', [aPoints[0].x, aPoints[0].y]),
         ];
-        lines.push(`aPath.moveTo(${aPoints[0].x}, ${aPoints[0].y});`);
-        for (let i = 1; i <= 7; i++) lines.push(`aPath.lineTo(${aPoints[i].x}, ${aPoints[i].y});`);
-        lines.push('aPath.close();');
-        lines.push(`aPath.moveTo(${aPoints[8].x}, ${aPoints[8].y});`);
-        lines.push(`aPath.lineTo(${aPoints[9].x}, ${aPoints[9].y});`);
-        lines.push(`aPath.lineTo(${aPoints[10].x}, ${aPoints[10].y});`);
-        lines.push('aPath.close();');
+        for (let i = 1; i <= 7; i++) {
+            lines.push(pathCall('aPath', 'lineTo', [aPoints[i].x, aPoints[i].y]));
+        }
+        lines.push(`aPath.${fn('close')}();`);
+        lines.push(pathCall('aPath', 'moveTo', [aPoints[8].x, aPoints[8].y]));
+        lines.push(pathCall('aPath', 'lineTo', [aPoints[9].x, aPoints[9].y]));
+        lines.push(pathCall('aPath', 'lineTo', [aPoints[10].x, aPoints[10].y]));
+        lines.push(`aPath.${fn('close')}();`);
         lines.push('');
-        lines.push('// Define the "B" glyph path (with curves)');
-        lines.push('const bPath = new opentype.Path();');
-        lines.push('// ... define B glyph here as well');
+        lines.push(cm('// Define the "B" glyph path (with curves)'));
+        lines.push(`${kw('const')} bPath = ${kw('new')} opentype.${fn('Path')}();`);
+        lines.push(cm('// ... define B glyph here as well'));
         lines.push('');
-        lines.push("const font = new opentype.Font({");
-        lines.push("    familyName: 'MyFont', styleName: 'Regular',");
-        lines.push("    unitsPerEm: 1000, ascender: 800, descender: -200,");
-        lines.push("    glyphs: [notdefGlyph,");
-        lines.push("        new opentype.Glyph({ name: 'A', unicode: 65, advanceWidth: 600, path: aPath }),");
-        lines.push("        new opentype.Glyph({ name: 'B', unicode: 66, advanceWidth: 620, path: bPath }),");
-        lines.push("    ]");
-        lines.push("});");
+        lines.push(`${kw('const')} font = ${kw('new')} opentype.${fn('Font')}({`);
+        lines.push(`    familyName: ${str("'MyFont'")}, styleName: ${str("'Regular'")},`);
+        lines.push(`    unitsPerEm: ${num(1000)}, ascender: ${num(800)}, descender: ${num(-200)},`);
+        lines.push(`    glyphs: [notdefGlyph,`);
+        lines.push(`        ${kw('new')} opentype.${fn('Glyph')}({ name: ${str("'A'")}, unicode: ${num(65)}, advanceWidth: ${num(600)}, path: aPath }),`);
+        lines.push(`        ${kw('new')} opentype.${fn('Glyph')}({ name: ${str("'B'")}, unicode: ${num(66)}, advanceWidth: ${num(620)}, path: bPath }),`);
+        lines.push(`    ]`);
+        lines.push(`});`);
         lines.push('');
-        lines.push('font.download(); // triggers browser download');
-        codeEl.textContent = lines.join('\n');
+        lines.push(`font.${fn('download')}(); ${cm('// triggers browser download')}`);
+        codeEl.innerHTML = lines.join('\n');
     }
 
     function drawGlyph(path, originX) {
@@ -834,18 +854,17 @@ function mulberry32(seed) {
 
 // ── Code Download Buttons ──────────────────────────────────
 
-document.querySelectorAll('.code-block .download-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+document.querySelectorAll('.code-block .copy-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
         const block = btn.closest('.code-block');
         const code = block.querySelector('code').textContent;
-        const filename = block.dataset.filename;
-        const title = filename.replace(/-/g, ' ').replace('.md', '');
-        const md = `# ${title}\n\n\`\`\`js\n${code}\n\`\`\`\n`;
-        const blob = new Blob([md], { type: 'text/markdown' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = filename;
-        a.click();
+        try {
+            await navigator.clipboard.writeText(code);
+            btn.classList.add('copied');
+            setTimeout(() => btn.classList.remove('copied'), 1500);
+        } catch (e) {
+            console.error('Copy failed:', e);
+        }
     });
 });
 

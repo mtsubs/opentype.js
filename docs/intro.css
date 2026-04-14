@@ -229,22 +229,31 @@ a:hover { color: var(--green-hover); }
     -webkit-text-size-adjust: none;
 }
 
-.code-block .download-btn {
+.code-block .copy-btn {
     position: absolute;
     top: 0.5rem;
     right: 0.5rem;
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: oklch(0.30 0.02 260);
     color: var(--code-text);
     border: none;
     border-radius: var(--radius);
-    padding: 0.3rem 0.75rem;
-    font-size: 0.75rem;
-    font-family: var(--font-body);
     cursor: pointer;
     opacity: 0.7;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s, background 0.15s, color 0.15s;
 }
-.code-block .download-btn:hover { opacity: 1; }
+.code-block .copy-btn:hover { opacity: 1; }
+.code-block .copy-btn .icon-check { display: none; }
+.code-block .copy-btn.copied {
+    opacity: 1;
+    color: var(--green);
+}
+.code-block .copy-btn.copied .icon-copy { display: none; }
+.code-block .copy-btn.copied .icon-check { display: block; }
 
 /* Syntax highlighting (minimal) */
 .code-block .kw { color: oklch(0.75 0.15 300); }  /* keywords */
